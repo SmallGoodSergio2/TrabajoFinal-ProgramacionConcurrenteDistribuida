@@ -1,0 +1,38 @@
+# Alternativa al script: `podman compose up --build` (o `podman-compose up --build`).
+# Los 5 nodos se escriben explícitamente porque deploy.replicas no es fiable en podman-compose.
+x-nodo: &nodo
+  image: localhost/cc65-nodo
+  build:
+    context: .
+    dockerfile: Containerfile
+    args: { CMD: nodo }
+  command: ["-coord=coordinador:9000", "-workers=2"]
+  volumes: ["./Dataset:/data:ro,Z"]
+  restart: on-failure
+  depends_on: [coordinador]
+  networks: [ml]
+
+services:
+  coordinador:
+    image: localhost/cc65-coordinador
+    build:
+      context: .
+      dockerfile: Containerfile
+      args: { CMD: coordinador }
+    command:
+      - -listen=:9000
+      - -nodes=5
+      - -data=/data/DenunciasPoliciales_1000000.csv
+      - -trees=30
+      - -hold
+    volumes: ["./Dataset:/data:ro,Z"]
+    networks: [ml]
+
+  nodo1: { <<: *nodo, hostname: nodo-1, environment: { NODE_ID: nodo-1 } }
+  nodo2: { <<: *nodo, hostname: nodo-2, environment: { NODE_ID: nodo-2 } }
+  nodo3: { <<: *nodo, hostname: nodo-3, environment: { NODE_ID: nodo-3 } }
+  nodo4: { <<: *nodo, hostname: nodo-4, environment: { NODE_ID: nodo-4 } }
+  nodo5: { <<: *nodo, hostname: nodo-5, environment: { NODE_ID: nodo-5 } }
+
+networks:
+  ml: {}
