@@ -1,0 +1,75 @@
+x-nodo: &nodo
+  image: localhost/cc65-nodo
+  build:
+    context: .
+    dockerfile: Containerfile
+    args: { CMD: nodo }
+  command: ["-coord=api:9000", "-workers=2"]
+  volumes: ["./Dataset:/data:ro,Z"]
+  restart: on-failure
+  depends_on: [api]
+  networks: [ml]
+
+services:
+  mongo:
+    image: docker.io/library/mongo:7
+    ports: ["27017:27017"]
+    volumes: ["mongo_data:/data/db:Z"]
+    networks: [ml]
+
+  redis:
+    image: docker.io/library/redis:7-alpine
+    ports: ["6379:6379"]
+    networks: [ml]
+
+  api:
+    image: localhost/cc65-api
+    build:
+      context: .
+      dockerfile: Containerfile
+      args: { CMD: api }
+    command:
+      - -http=:8080
+      - -tcp=:9000
+      - -data=/data/DenunciasPoliciales_1000000.csv
+      - -mongo=mongodb://mongo:27017
+      - -redis=redis:6379
+      - -nodes=5
+      - -trees=30
+      - -auto-train
+    environment:
+      HTTP_ADDR: ":8080"
+      TCP_ADDR: ":9000"
+    ports:
+      - "8080:8080"
+    volumes: ["./Dataset:/data:ro,Z"]
+    depends_on: [mongo, redis]
+    networks: [ml]
+
+  coordinador:
+    image: localhost/cc65-coordinador
+    build:
+      context: .
+      dockerfile: Containerfile
+      args: { CMD: coordinador }
+    profiles: ["cli"]
+    command:
+      - -listen=:9000
+      - -nodes=5
+      - -data=/data/DenunciasPoliciales_1000000.csv
+      - -trees=30
+      - -hold
+    volumes: ["./Dataset:/data:ro,Z"]
+    networks: [ml]
+
+  nodo1: { <<: *nodo, hostname: nodo-1, environment: { NODE_ID: nodo-1 } }
+  nodo2: { <<: *nodo, hostname: nodo-2, environment: { NODE_ID: nodo-2 } }
+  nodo3: { <<: *nodo, hostname: nodo-3, environment: { NODE_ID: nodo-3 } }
+  nodo4: { <<: *nodo, hostname: nodo-4, environment: { NODE_ID: nodo-4 } }
+  nodo5: { <<: *nodo, hostname: nodo-5, environment: { NODE_ID: nodo-5 } }
+
+networks:
+  ml: {}
+
+volumes:
+  mongo_data: {}
