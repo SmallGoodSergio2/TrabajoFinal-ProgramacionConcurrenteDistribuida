@@ -1,6 +1,3 @@
-// Package node es el nodo de cómputo (un satélite de la estrella): se conecta
-// al coordinador, entrena los árboles de su shard con rf.Train (pool de
-// goroutines) y responde predicciones con sus propios árboles.
 package node
 
 import (
