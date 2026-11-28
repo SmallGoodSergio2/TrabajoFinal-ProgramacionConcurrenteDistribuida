@@ -1,0 +1,113 @@
+openapi: 3.0.3
+info:
+  title: CC65 Random Forest Distribuido — API Coordinador
+  description: |
+    API REST del coordinador del clúster ML (topología en estrella).
+    Gestiona nodos por TCP, predice modalidad de delito y persiste métricas
+    en MongoDB / Redis. Latencia objetivo de predicción: < 100 ms.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local / Docker Compose
+paths:
+  /health:
+    get:
+      summary: Estado del servicio
+      operationId: health
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  nodes: { type: integer }
+                  classes: { type: integer }
+                  data_ready: { type: boolean }
+  /api/v1/nodes:
+    get:
+      summary: Nodos ML conectados al hub TCP
+      operationId: listNodes
+      responses:
+        "200":
+          description: Lista de nodos
+  /api/v1/classes:
+    get:
+      summary: Clases (modalidades) del modelo
+      operationId: listClasses
+      responses:
+        "200":
+          description: Clases ordenadas
+  /api/v1/train:
+    post:
+      summary: Entrenar Random Forest distribuido en el clúster
+      operationId: train
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                trees: { type: integer, example: 30 }
+                max_depth: { type: integer, example: 14 }
+                min_samples_leaf: { type: integer, example: 20 }
+                test_fraction: { type: number, example: 0.1 }
+      responses:
+        "200":
+          description: Entrenamiento completo
+        "206":
+          description: Entrenamiento parcial (algunos nodos fallaron)
+        "409":
+          description: Ya hay un entrenamiento en curso
+  /api/v1/predict:
+    post:
+      summary: Predicción de modalidad (latencia < 100 ms)
+      operationId: predict
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ubigeo, anio, mes]
+              properties:
+                ubigeo: { type: integer, example: 150101 }
+                anio: { type: integer, example: 2019 }
+                mes: { type: integer, example: 6 }
+      responses:
+        "200":
+          description: Predicción
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  top_class: { type: string }
+                  top_prob: { type: number }
+                  probs: { type: object, additionalProperties: { type: number } }
+                  latency_ms: { type: number }
+                  nodes: { type: integer }
+                  trees: { type: integer }
+                  under_100ms: { type: boolean }
+                  cached: { type: boolean }
+        "404":
+          description: Ubigeo desconocido
+        "503":
+          description: Sin nodos o sin modelo
+  /api/v1/predictions:
+    get:
+      summary: Últimas predicciones persistidas en MongoDB
+      operationId: listPredictions
+      responses:
+        "200":
+          description: Historial
+  /api/v1/train-runs:
+    get:
+      summary: Historial de entrenamientos en MongoDB
+      operationId: listTrainRuns
+      responses:
+        "200":
+          description: Historial

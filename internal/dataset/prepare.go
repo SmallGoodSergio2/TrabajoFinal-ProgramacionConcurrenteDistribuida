@@ -165,6 +165,13 @@ func groupHash(k MonthKey) uint32 {
 	return h.Sum32()
 }
 
+func ShardOf(k MonthKey, nShards int) int {
+	if nShards <= 1 {
+		return 0
+	}
+	return int(groupHash(k) % uint32(nShards))
+}
+
 // Features escribe el vector de características para un distrito y mes.
 func (p *Prepared) Features(ubigeo, anio, mes int, dst []float32) ([]float32, bool) {
 	d, ok := p.Districts[ubigeo]
